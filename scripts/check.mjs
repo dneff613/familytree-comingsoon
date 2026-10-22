@@ -1,0 +1,14 @@
+import { readFile, access } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const html = await readFile('index.html', 'utf8');
+assert.match(html, /<html lang="en">/);
+assert.equal((html.match(/<h1\b/g) || []).length, 1, 'Exactly one h1');
+assert.match(html, /name="viewport"/);
+assert.match(html, /name="description"/);
+assert(!/<script|<form|<iframe|https?:\/\//i.test(html), 'No scripts, forms, embeds or third-party requests');
+const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]);
+assert.equal(ids.length, new Set(ids).size, 'Unique IDs');
+for (const [, target] of html.matchAll(/href="#([^"]+)"/g)) assert(ids.includes(target), `Anchor exists: ${target}`);
+for (const [, asset] of html.matchAll(/(?:href|src)="(\/assets\/[^"]+)"/g)) await access(`.${asset}`);
+for (const text of ['Build', 'Research', 'Connect', 'Coming soon.', 'Where Researchers Come Together.']) assert(html.includes(text), `Required content: ${text}`);
+console.log('Checks passed: metadata, structure, links, local assets, required content, privacy constraints.');
